@@ -1,0 +1,235 @@
+:root {
+  --color-bg: #edf5fb;
+  --color-card: #ffffff;
+  --color-card-soft: rgba(255, 255, 255, 0.86);
+  --color-border: #dde6ee;
+  --color-border-strong: #c5d3df;
+  --color-text: #172335;
+  --color-text-muted: #6b7b8d;
+  --color-primary: #0796bd;
+  --color-primary-strong: #087a9e;
+  --color-cyan: #18a9c7;
+  --color-teal: #12a894;
+  --color-success: #12b981;
+  --color-warning: #f59e0b;
+  --color-danger: #f04438;
+  --color-navy: #07111f;
+  --color-navy-soft: #0d1b2e;
+  --shadow-card: 0 18px 40px rgba(31, 66, 96, 0.08);
+  --shadow-soft: 0 8px 22px rgba(31, 66, 96, 0.06);
+  --radius: 8px;
+  --spacing: 16px;
+  --page-padding: 24px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", Roboto, sans-serif;
+  font-size: 14px;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.page {
+  padding: 24px;
+  min-height: 100%;
+  width: 100%;
+  max-width: none;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 251, 254, 0.92));
+  border: 1px solid #cfdeea;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+}
+
+.page-header > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 900;
+  color: #071a33;
+  margin: 0;
+  letter-spacing: 0;
+  line-height: 1.15;
+}
+
+.page-subtitle {
+  order: -1;
+  color: #087a9e;
+  font-size: 13px;
+  font-weight: 800;
+  margin: 0 0 4px;
+}
+
+.section-card {
+  background: #ffffff;
+  border-radius: var(--radius);
+  border: 1px solid #d2e0eb;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  letter-spacing: 0;
+}
+
+.el-table {
+  font-size: 13px;
+  --el-table-border-color: #dde8ef;
+  --el-table-header-bg-color: #f2f7fb;
+  --el-table-header-text-color: #142a43;
+  --el-table-row-hover-bg-color: #edf8fc;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 700;
+}
+
+.el-table .el-table__cell {
+  padding: 13px 0;
+}
+
+.el-button {
+  border-radius: 7px;
+  font-weight: 700;
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--color-primary);
+  --el-button-border-color: var(--color-primary);
+  --el-button-hover-bg-color: #22c7ee;
+  --el-button-hover-border-color: #22c7ee;
+  box-shadow: none;
+}
+
+.el-button--success {
+  --el-button-bg-color: var(--color-teal);
+  --el-button-border-color: var(--color-teal);
+  --el-button-hover-bg-color: #2dd4bf;
+  --el-button-hover-border-color: #2dd4bf;
+}
+
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px #d2dfeb inset;
+  background: #ffffff;
+}
+
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px #9bd6e8 inset;
+}
+
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focused {
+  box-shadow:
+    0 0 0 1px var(--color-cyan) inset,
+    0 0 0 3px rgba(6, 182, 212, 0.12);
+}
+
+.el-tag {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.el-card {
+  border-radius: var(--radius);
+  border-color: rgba(197, 213, 224, 0.9);
+  box-shadow: var(--shadow-soft);
+}
+
+.el-dialog {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(170, 193, 207, 0.9);
+}
+
+.el-dialog__header {
+  padding: 18px 20px 12px;
+  background: linear-gradient(135deg, #f7fbfe, #edf8fc);
+}
+
+.el-tabs__item {
+  font-weight: 700;
+}
+
+.el-tabs__active-bar {
+  background: linear-gradient(90deg, var(--color-primary), var(--color-teal));
+}
+
+.status-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  display: inline-block;
+}
+
+.toolbar {
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 760px) {
+  :root {
+    --page-padding: 14px;
+  }
+
+  .page-header {
+    align-items: flex-start;
+    flex-direction: column;
+    position: static;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .section-card {
+    padding: 14px;
+  }
+}
