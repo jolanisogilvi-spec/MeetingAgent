@@ -129,7 +129,9 @@ async function onSave() {
 async function onTest() {
   testing.value = true
   const tip =
-    form.provider === 'local' ? '正在尝试加载本地语音模型' : '正在连接线上语音接口'
+    form.provider === 'local'
+      ? '正在生成内置测试音频，并调用本地模型转写'
+      : '正在生成内置测试音频，并上传到线上转写接口'
   setFeedback('info', '测试中…', tip)
   try {
     const res = await settingsApi.testSpeech(buildPayload())
@@ -138,6 +140,9 @@ async function onTest() {
       const lines = []
       if (extra.model) lines.push(`模型：${extra.model}`)
       if (extra.provider) lines.push(`模式：${extra.provider === 'local' ? '本地' : '线上'}`)
+      if (extra.endpoint) lines.push(`接口：${extra.endpoint}`)
+      if (typeof extra.stream === 'boolean') lines.push(`stream：${extra.stream ? 'true' : 'false'}`)
+      lines.push(`转写结果：${extra.transcript || '接口已返回，测试音频未识别出明确文本'}`)
       setFeedback('success', `测试成功：${res.message || '语音模型可用'}`, lines.join('\n'))
     } else {
       setFeedback('error', '测试失败', res?.message || '未知错误')
