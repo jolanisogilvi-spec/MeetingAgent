@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import shutil
+import logging
 from pathlib import Path
 from urllib.parse import quote
 
@@ -20,6 +21,7 @@ from ..services import exporter, meeting_ai
 from ..utils.ids import make_id, now_iso
 
 router = APIRouter(prefix="/meetings", tags=["会议管理"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=list[MeetingOut], summary="会议列表", description="查询会议列表，可按状态、部门和关键词筛选。")
@@ -193,9 +195,11 @@ def _run_generation_job(
 ) -> None:
     db = SessionLocal()
     try:
+        logger.info("meeting generation started: %s", meeting_id)
         meeting = db.get(Meeting, meeting_id)
         settings = db.get(Settings, 1)
         if meeting is None:
+            logger.warning("meeting generation skipped, meeting not found: %s", meeting_id)
             return
         if settings is None:
             raise ValueError("尚未配置系统设置")
@@ -207,7 +211,9 @@ def _run_generation_job(
             meeting_file_path=meeting_file_path,
             kb_file_paths=kb_file_paths,
         )
+        logger.info("meeting generation finished: %s", meeting_id)
     except Exception as exc:  # noqa: BLE001
+        logger.exception("meeting generation failed: %s", meeting_id)
         db.rollback()
         fresh = db.get(Meeting, meeting_id)
         if fresh is not None:
