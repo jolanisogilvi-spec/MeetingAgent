@@ -5,13 +5,13 @@ import shutil
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..config import KB_UPLOAD_EXTS, MAX_UPLOAD_SIZE, MEETING_UPLOAD_EXTS, UPLOAD_DIR
-from ..database import get_db
+from ..database import SessionLocal, get_db
 from ..models.meeting import Meeting
 from ..models.settings import Settings
 from ..models.task import Task
@@ -121,13 +121,14 @@ def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
     response_model=MeetingOut,
     summary="生成会议纪要",
     description=(
-        "上传或提交会议材料并同步执行 AI 纪要生成流程。"
+        "上传或提交会议材料，接口会先将会议标记为 generating 并立即返回，随后在后台执行 AI 纪要生成流程。"
         "支持粘贴文本、上传 mp3/wav/txt/docx 会议材料，以及上传 txt/docx 知识库参考资料。"
-        "生成完成后会写回原文、摘要、结构化 JSON，并从 ActionItems 自动创建待办任务。"
+        "生成完成后会写回原文、摘要、结构化 JSON，并从 ActionItems 自动创建待办任务；前端可轮询会议详情查看状态。"
     ),
 )
 async def generate_meeting(
     meeting_id: str,
+    background_tasks: BackgroundTasks,
     meeting_text: str = Form(default="", description="会议原文；若同时上传文件，则优先使用该文本"),
     meeting_file: UploadFile | None = File(default=None, description="会议文件，支持 .mp3、.wav、.txt、.docx，单文件最大 50MB"),
     kb_files: list[UploadFile] | None = File(default=None, description="知识库参考资料，支持多个 .txt 或 .docx 文件"),
@@ -173,15 +174,38 @@ async def generate_meeting(
     meeting.error_message = ""
     meeting.updated_at = now_iso()
     db.commit()
+    db.refresh(meeting)
+    background_tasks.add_task(
+        _run_generation_job,
+        meeting_id,
+        meeting_text or "",
+        str(meeting_file_path) if meeting_file_path else None,
+        [str(p) for p in kb_paths],
+    )
+    return meeting
 
+
+def _run_generation_job(
+    meeting_id: str,
+    meeting_text: str,
+    meeting_file_path: str | None,
+    kb_file_paths: list[str],
+) -> None:
+    db = SessionLocal()
     try:
+        meeting = db.get(Meeting, meeting_id)
+        settings = db.get(Settings, 1)
+        if meeting is None:
+            return
+        if settings is None:
+            raise ValueError("尚未配置系统设置")
         meeting_ai.generate_minutes(
             db,
             meeting,
             settings,
-            meeting_text=meeting_text or "",
+            meeting_text=meeting_text,
             meeting_file_path=meeting_file_path,
-            kb_file_paths=kb_paths,
+            kb_file_paths=kb_file_paths,
         )
     except Exception as exc:  # noqa: BLE001
         db.rollback()
@@ -191,10 +215,8 @@ async def generate_meeting(
             fresh.error_message = str(exc)[:1000]
             fresh.updated_at = now_iso()
             db.commit()
-            db.refresh(fresh)
-        raise HTTPException(status_code=500, detail=f"生成失败：{exc}") from exc
-
-    return meeting
+    finally:
+        db.close()
 
 
 async def _save_upload(

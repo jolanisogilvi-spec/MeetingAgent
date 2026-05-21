@@ -58,10 +58,15 @@ def transcribe(
     api_key: str,
     base_url: str,
     model_name: str,
+    model_type: str = "",
 ) -> str:
     if provider == "online":
         return transcribe_online(
-            audio_path, api_key=api_key, base_url=base_url, model_name=model_name
+            audio_path,
+            api_key=api_key,
+            base_url=base_url,
+            model_name=model_name,
+            model_type=model_type,
         )
     return transcribe_local(audio_path, model_name=model_name or "base")
 

@@ -78,7 +78,7 @@
           :disabled="generating || meeting.status === 'generating'"
           @click="onGenerate"
         >
-          {{ generating ? '生成中…' : '生成会议纪要' }}
+          {{ generating || meeting.status === 'generating' ? '生成中…' : '生成会议纪要' }}
         </el-button>
       </div>
 
@@ -103,7 +103,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -142,6 +142,7 @@ const materialsRef = ref(null)
 
 const meetingTasks = ref([])
 const tasksLoading = ref(false)
+const pollTimer = ref(null)
 
 const canExport = computed(() => {
   if (!meeting.value) return false
@@ -166,6 +167,7 @@ async function refresh() {
       peopleStore.list.length ? Promise.resolve() : peopleStore.refresh()
     ])
     meeting.value = m
+    syncGenerationPolling()
     await refreshTasks()
   } finally {
     loading.value = false
@@ -183,7 +185,10 @@ async function refreshTasks() {
 }
 
 function onMeetingUpdated(updated) {
-  if (updated) meeting.value = updated
+  if (updated) {
+    meeting.value = updated
+    syncGenerationPolling()
+  }
 }
 
 function onFilesChanged(payload) {
@@ -225,13 +230,17 @@ async function onGenerate() {
   try {
     const updated = await meetingsApi.generate(meetingId.value, formData)
     meeting.value = updated
-    await refreshTasks()
-    if (updated?.status === 'failed') {
+    syncGenerationPolling()
+    if (updated?.status === 'generating') {
+      ElMessage.info('会议纪要已开始生成，可先浏览其他页面')
+      materialsRef.value?.reset?.()
+    } else if (updated?.status === 'failed') {
       ElMessage.error(updated.error_message || '生成失败')
     } else {
       ElMessage.success('会议纪要已生成')
       activeTab.value = 'summary'
       materialsRef.value?.reset?.()
+      await refreshTasks()
     }
   } catch (e) {
     await refresh().catch(() => {})
@@ -328,8 +337,45 @@ function statusTagType(s) {
   }
 }
 
+function syncGenerationPolling() {
+  if (meeting.value?.status === 'generating') {
+    startGenerationPolling()
+  } else {
+    stopGenerationPolling()
+  }
+}
+
+function startGenerationPolling() {
+  if (pollTimer.value) return
+  pollTimer.value = window.setInterval(async () => {
+    try {
+      const latest = await meetingsApi.get(meetingId.value)
+      meeting.value = latest
+      if (latest?.status && latest.status !== 'generating') {
+        stopGenerationPolling()
+        await refreshTasks()
+        if (latest.status === 'completed') {
+          activeTab.value = 'summary'
+          ElMessage.success('会议纪要已生成')
+        } else if (latest.status === 'failed') {
+          ElMessage.error(latest.error_message || '生成失败')
+        }
+      }
+    } catch (e) {
+      // 轮询失败不打断页面使用，下一轮继续尝试。
+    }
+  }, 4000)
+}
+
+function stopGenerationPolling() {
+  if (!pollTimer.value) return
+  window.clearInterval(pollTimer.value)
+  pollTimer.value = null
+}
+
 watch(meetingId, (v) => {
   if (v) {
+    stopGenerationPolling()
     meeting.value = null
     meetingFile.value = null
     kbFiles.value = []
@@ -338,6 +384,7 @@ watch(meetingId, (v) => {
 })
 
 onMounted(refresh)
+onUnmounted(stopGenerationPolling)
 </script>
 
 <style scoped>

@@ -109,6 +109,7 @@ def _prepare_raw_text(
                 api_key=settings.speech_api_key or "",
                 base_url=settings.speech_base_url or "",
                 model_name=settings.speech_model_name or "",
+                model_type=settings.speech_model_type or "",
             )
             return (transcript or "").strip()
         if suffix in {".txt", ".docx"}:
