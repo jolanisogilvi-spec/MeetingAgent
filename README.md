@@ -19,7 +19,8 @@
 
 - 数据看板：汇总会议、任务、人员、部门等核心运营数据
 - 会议管理：创建、筛选、查看和删除会议
-- 会议详情：维护基础信息、参会人员、会议材料和知识库参考资料
+- 会议详情：维护基础信息、参会人员、会议材料、知识库参考资料和会前准备
+- 会前准备：按参会人员填写准备要求、跟踪准备状态，并上传公共或个人准备文件
 - AI 纪要生成：摘要、结构化纪要、质检补全三步生成
 - 待办沉淀：自动从纪要中抽取任务，并在日程任务页集中管理
 - JSON 编辑：支持手动编辑结构化纪要并重新同步任务
@@ -69,6 +70,7 @@ http://localhost:8050
 - `/docs` → `http://localhost:8000/docs`
 - `/openapi.json` → `http://localhost:8000/openapi.json`
 - `/redoc` → `http://localhost:8000/redoc`
+- `/uploads/*` → `http://localhost:8000/uploads/*`
 
 ## 页面路径
 
@@ -141,7 +143,7 @@ MeetingAgent/
 | 路径 | 内容 |
 |---|---|
 | `backend/data/app.db` | SQLite 数据库 |
-| `backend/data/uploads/<meeting_id>/` | 会议材料与知识库文件 |
+| `backend/data/uploads/<meeting_id>/` | 会议材料、知识库文件与会前准备文件 |
 | `backend/data/exports/` | 导出的 Word 文件 |
 
 备份时复制整个 `backend/data/` 目录即可。重置数据时停止服务，删除该目录后重新启动后端。

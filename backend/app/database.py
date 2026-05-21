@@ -1,5 +1,5 @@
 """SQLAlchemy engine, session, and base."""
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
 from .config import DB_URL, ensure_dirs
@@ -33,3 +33,19 @@ def init_db() -> None:
     from . import models  # noqa: F401  ensure models are imported
 
     Base.metadata.create_all(bind=engine)
+    _ensure_meeting_prep_data_column()
+
+
+def _ensure_meeting_prep_data_column() -> None:
+    """Add lightweight SQLite-compatible columns that older databases lack."""
+    default_value = '{"common_files":[],"participants":{}}'
+    with engine.begin() as conn:
+        rows = conn.execute(text("PRAGMA table_info(meetings)")).mappings().all()
+        columns = {row["name"] for row in rows}
+        if "prep_data" not in columns:
+            conn.execute(
+                text(
+                    "ALTER TABLE meetings "
+                    f"ADD COLUMN prep_data JSON NOT NULL DEFAULT '{default_value}'"
+                )
+            )

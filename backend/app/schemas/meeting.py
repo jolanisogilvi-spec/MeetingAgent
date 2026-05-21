@@ -30,6 +30,36 @@ class MeetingUpdate(BaseModel):
     kb_filenames: list[str] | None = Field(default=None, description="上传的知识库参考文件名列表")
 
 
+class PreparationFileOut(BaseModel):
+    id: str = Field(description="准备文件 ID")
+    name: str = Field(description="原始文件名")
+    url: str = Field(description="文件下载地址")
+    size: int = Field(description="文件大小，单位字节")
+    uploaded_at: str = Field(description="上传时间，ISO 8601 字符串")
+
+
+class ParticipantPreparation(BaseModel):
+    requirements: str = Field(default="", description="该参会人员需要准备的资料或事项")
+    status: str = Field(default="未准备", description="准备状态：未准备、准备中、已准备")
+    files: list[PreparationFileOut] = Field(default_factory=list, description="该参会人员上传的准备文件")
+
+
+class MeetingPreparationOut(BaseModel):
+    common_files: list[PreparationFileOut] = Field(default_factory=list, description="会议公共准备资料")
+    participants: dict[str, ParticipantPreparation] = Field(default_factory=dict, description="按参会人员 ID 保存的会前准备")
+
+
+class ParticipantPreparationUpdate(BaseModel):
+    requirements: str = Field(default="", description="该参会人员需要准备的资料或事项")
+    status: str = Field(default="未准备", description="准备状态：未准备、准备中、已准备")
+    files: list[PreparationFileOut] = Field(default_factory=list, description="该参会人员已有准备文件")
+
+
+class MeetingPreparationUpdate(BaseModel):
+    common_files: list[PreparationFileOut] = Field(default_factory=list, description="会议公共准备资料")
+    participants: dict[str, ParticipantPreparationUpdate] = Field(default_factory=dict, description="按参会人员 ID 保存的会前准备")
+
+
 class MeetingOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,5 +78,6 @@ class MeetingOut(BaseModel):
     error_message: str = Field(description="生成失败时的错误信息")
     audio_filename: str = Field(description="上传的会议文件名")
     kb_filenames: list[str] = Field(description="上传的知识库参考文件名列表")
+    prep_data: dict = Field(description="会前准备数据，包含公共资料和参会人员准备要求")
     created_at: str = Field(description="创建时间，ISO 8601 字符串")
     updated_at: str = Field(description="更新时间，ISO 8601 字符串")

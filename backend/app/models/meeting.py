@@ -25,6 +25,7 @@ class Meeting(Base):
 
     audio_filename: Mapped[str] = mapped_column(String(255), default="", nullable=False)
     kb_filenames: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    prep_data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
     created_at: Mapped[str] = mapped_column(String(32), nullable=False)
     updated_at: Mapped[str] = mapped_column(String(32), nullable=False)

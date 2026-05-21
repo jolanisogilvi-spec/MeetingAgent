@@ -19,6 +19,14 @@
       <div class="header-actions">
         <el-button :icon="Refresh" :loading="loading" @click="refresh">刷新</el-button>
         <el-button
+          plain
+          :icon="FolderOpened"
+          :disabled="!meeting"
+          @click="preparationVisible = true"
+        >
+          会前准备
+        </el-button>
+        <el-button
           type="success"
           plain
           :icon="CircleCheck"
@@ -98,6 +106,12 @@
         :meeting="meeting"
         @updated="onMeetingUpdated"
       />
+
+      <PreparationDrawer
+        v-model="preparationVisible"
+        :meeting="meeting"
+        :people="peopleStore.list"
+      />
     </template>
   </div>
 </template>
@@ -110,6 +124,7 @@ import {
   ArrowLeft,
   CircleCheck,
   Download,
+  FolderOpened,
   MagicStick,
   Refresh
 } from '@element-plus/icons-vue'
@@ -118,6 +133,7 @@ import ParticipantsList from './components/ParticipantsList.vue'
 import MaterialsPanel from './components/MaterialsPanel.vue'
 import ResultTabs from './components/ResultTabs.vue'
 import CreateMeetingDialog from './components/CreateMeetingDialog.vue'
+import PreparationDrawer from './components/PreparationDrawer.vue'
 import { meetingsApi, tasksApi } from '@/api'
 import { useDepartmentsStore } from '@/stores/departments'
 import { usePeopleStore } from '@/stores/people'
@@ -134,6 +150,7 @@ const generating = ref(false)
 const exporting = ref(false)
 const confirming = ref(false)
 const editVisible = ref(false)
+const preparationVisible = ref(false)
 const activeTab = ref('summary')
 
 const meetingFile = ref(null)

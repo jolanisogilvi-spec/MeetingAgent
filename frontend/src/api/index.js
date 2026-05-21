@@ -89,6 +89,14 @@ export const meetingsApi = {
   get: (id) => http.get(`/meetings/${id}`),
   update: (id, data) => http.put(`/meetings/${id}`, data),
   remove: (id) => http.delete(`/meetings/${id}`),
+  getPreparation: (id) => http.get(`/meetings/${id}/preparation`),
+  updatePreparation: (id, data) => http.put(`/meetings/${id}/preparation`, data),
+  uploadPreparationFile: (id, formData) =>
+    http.post(`/meetings/${id}/preparation/files`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+  deletePreparationFile: (id, fileId) =>
+    http.delete(`/meetings/${id}/preparation/files/${fileId}`),
   generate: (id, formData) =>
     http.post(`/meetings/${id}/generate`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }

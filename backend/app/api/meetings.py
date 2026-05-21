@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import shutil
 import logging
+import uuid
 from pathlib import Path
 from urllib.parse import quote
 
@@ -11,12 +12,24 @@ from fastapi.responses import FileResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from ..config import KB_UPLOAD_EXTS, MAX_UPLOAD_SIZE, MEETING_UPLOAD_EXTS, UPLOAD_DIR
+from ..config import (
+    KB_UPLOAD_EXTS,
+    MAX_UPLOAD_SIZE,
+    MEETING_UPLOAD_EXTS,
+    PREPARATION_UPLOAD_EXTS,
+    UPLOAD_DIR,
+)
 from ..database import SessionLocal, get_db
 from ..models.meeting import Meeting
 from ..models.settings import Settings
 from ..models.task import Task
-from ..schemas.meeting import MeetingCreate, MeetingOut, MeetingUpdate
+from ..schemas.meeting import (
+    MeetingCreate,
+    MeetingOut,
+    MeetingPreparationOut,
+    MeetingPreparationUpdate,
+    MeetingUpdate,
+)
 from ..services import exporter, meeting_ai
 from ..utils.ids import make_id, now_iso
 
@@ -67,6 +80,7 @@ def create_meeting(payload: MeetingCreate, db: Session = Depends(get_db)):
         error_message="",
         audio_filename="",
         kb_filenames=[],
+        prep_data=_default_preparation(),
         created_at=now,
         updated_at=now,
     )
@@ -116,6 +130,129 @@ def delete_meeting(meeting_id: str, db: Session = Depends(get_db)):
     db.delete(meeting)
     db.commit()
     return {"detail": "已删除"}
+
+
+@router.get(
+    "/{meeting_id}/preparation",
+    response_model=MeetingPreparationOut,
+    summary="读取会前准备",
+    description="读取会议公共准备资料，以及每位参会人员的准备要求、状态和文件。",
+)
+def get_preparation(meeting_id: str, db: Session = Depends(get_db)) -> MeetingPreparationOut:
+    meeting = db.get(Meeting, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="会议不存在")
+    return _normalize_preparation(meeting)
+
+
+@router.put(
+    "/{meeting_id}/preparation",
+    response_model=MeetingPreparationOut,
+    summary="保存会前准备",
+    description="保存每位当前参会人员的会前准备要求和准备状态。已移除的参会人员准备数据会被清理。",
+)
+def update_preparation(
+    meeting_id: str,
+    payload: MeetingPreparationUpdate,
+    db: Session = Depends(get_db),
+) -> MeetingPreparationOut:
+    meeting = db.get(Meeting, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="会议不存在")
+
+    current = _normalize_preparation(meeting)
+    incoming = payload.model_dump()
+    participants: dict[str, dict] = {}
+    allowed_ids = set(meeting.participant_ids or [])
+    for person_id in meeting.participant_ids or []:
+        old_entry = current["participants"].get(person_id, {})
+        entry = incoming.get("participants", {}).get(person_id, {})
+        participants[person_id] = {
+            "requirements": str(entry.get("requirements") or ""),
+            "status": _normalize_preparation_status(entry.get("status")),
+            "files": old_entry.get("files", []),
+        }
+    meeting.prep_data = {
+        "common_files": current["common_files"],
+        "participants": {k: v for k, v in participants.items() if k in allowed_ids},
+    }
+    meeting.updated_at = now_iso()
+    db.commit()
+    db.refresh(meeting)
+    return _normalize_preparation(meeting)
+
+
+@router.post(
+    "/{meeting_id}/preparation/files",
+    response_model=MeetingPreparationOut,
+    summary="上传会前准备文件",
+    description="上传会议公共准备文件，或上传指定参会人员的准备文件。",
+)
+async def upload_preparation_file(
+    meeting_id: str,
+    scope: str = Form(default="common", description="文件归属：common 或 participant"),
+    person_id: str = Form(default="", description="参会人员 ID；scope=participant 时必填"),
+    file: UploadFile = File(..., description="准备文件，支持 txt/doc/docx/pdf/ppt/pptx/xls/xlsx"),
+    db: Session = Depends(get_db),
+) -> MeetingPreparationOut:
+    meeting = db.get(Meeting, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="会议不存在")
+    if scope not in {"common", "participant"}:
+        raise HTTPException(status_code=400, detail="文件归属必须是 common 或 participant")
+    if scope == "participant" and person_id not in set(meeting.participant_ids or []):
+        raise HTTPException(status_code=400, detail="请选择当前会议的参会人员")
+
+    prep_dir = UPLOAD_DIR / meeting_id / "preparation"
+    prep_dir.mkdir(parents=True, exist_ok=True)
+    file_meta = await _save_preparation_upload(file, prep_dir, meeting_id)
+
+    prep = _normalize_preparation(meeting)
+    if scope == "common":
+        prep["common_files"].append(file_meta)
+    else:
+        prep["participants"].setdefault(
+            person_id, {"requirements": "", "status": "未准备", "files": []}
+        )
+        prep["participants"][person_id]["files"].append(file_meta)
+
+    meeting.prep_data = prep
+    meeting.updated_at = now_iso()
+    db.commit()
+    db.refresh(meeting)
+    return _normalize_preparation(meeting)
+
+
+@router.delete(
+    "/{meeting_id}/preparation/files/{file_id}",
+    response_model=MeetingPreparationOut,
+    summary="删除会前准备文件",
+    description="删除会议公共准备文件或参会人员准备文件，同时清理磁盘文件。",
+)
+def delete_preparation_file(
+    meeting_id: str,
+    file_id: str,
+    db: Session = Depends(get_db),
+) -> MeetingPreparationOut:
+    meeting = db.get(Meeting, meeting_id)
+    if not meeting:
+        raise HTTPException(status_code=404, detail="会议不存在")
+
+    prep = _normalize_preparation(meeting)
+    removed = _remove_preparation_file(prep, file_id)
+    if removed is None:
+        raise HTTPException(status_code=404, detail="准备文件不存在")
+
+    stored_name = Path(str(removed.get("stored_name") or "")).name
+    if stored_name:
+        target = UPLOAD_DIR / meeting_id / "preparation" / stored_name
+        target.unlink(missing_ok=True)
+
+    meeting.prep_data = prep
+    meeting.updated_at = now_iso()
+    db.commit()
+    db.refresh(meeting)
+    return _normalize_preparation(meeting)
 
 
 @router.post(
@@ -255,6 +392,121 @@ async def _save_upload(
             out.write(chunk)
     await upload.close()
     return target
+
+
+def _default_preparation() -> dict:
+    return {"common_files": [], "participants": {}}
+
+
+def _normalize_preparation(meeting: Meeting) -> dict:
+    raw = meeting.prep_data if isinstance(meeting.prep_data, dict) else {}
+    common_files = [
+        _normalize_preparation_file(meeting.id, item)
+        for item in raw.get("common_files", [])
+        if isinstance(item, dict)
+    ]
+    raw_participants = raw.get("participants", {})
+    if not isinstance(raw_participants, dict):
+        raw_participants = {}
+
+    participants: dict[str, dict] = {}
+    for person_id in meeting.participant_ids or []:
+        raw_entry = raw_participants.get(person_id, {})
+        if not isinstance(raw_entry, dict):
+            raw_entry = {}
+        files = [
+            _normalize_preparation_file(meeting.id, item)
+            for item in raw_entry.get("files", [])
+            if isinstance(item, dict)
+        ]
+        participants[person_id] = {
+            "requirements": str(raw_entry.get("requirements") or ""),
+            "status": _normalize_preparation_status(raw_entry.get("status")),
+            "files": files,
+        }
+    return {"common_files": common_files, "participants": participants}
+
+
+def _normalize_preparation_status(value: object) -> str:
+    status = str(value or "").strip()
+    if status in {"未准备", "准备中", "已准备"}:
+        return status
+    return "未准备"
+
+
+def _normalize_preparation_file(meeting_id: str, item: dict) -> dict:
+    file_id = str(item.get("id") or uuid.uuid4().hex)
+    name = Path(str(item.get("name") or item.get("stored_name") or "file")).name
+    stored_name = Path(str(item.get("stored_name") or name)).name
+    return {
+        "id": file_id,
+        "name": name,
+        "stored_name": stored_name,
+        "url": f"/uploads/{meeting_id}/preparation/{quote(stored_name)}",
+        "size": int(item.get("size") or 0),
+        "uploaded_at": str(item.get("uploaded_at") or ""),
+    }
+
+
+async def _save_preparation_upload(
+    upload: UploadFile,
+    directory: Path,
+    meeting_id: str,
+) -> dict:
+    if upload is None or not (upload.filename or "").strip():
+        raise HTTPException(status_code=400, detail="请选择要上传的文件")
+    original_name = Path(upload.filename).name
+    suffix = Path(original_name).suffix.lower()
+    if suffix not in PREPARATION_UPLOAD_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的准备文件类型 {suffix}，允许：{', '.join(sorted(PREPARATION_UPLOAD_EXTS))}",
+        )
+
+    file_id = uuid.uuid4().hex
+    stored_name = f"{file_id}{suffix}"
+    target = directory / stored_name
+    written = 0
+    with target.open("wb") as out:
+        while True:
+            chunk = await upload.read(1024 * 1024)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > MAX_UPLOAD_SIZE:
+                out.close()
+                target.unlink(missing_ok=True)
+                raise HTTPException(status_code=400, detail="文件超过 50MB 限制")
+            out.write(chunk)
+    await upload.close()
+    return {
+        "id": file_id,
+        "name": original_name,
+        "stored_name": stored_name,
+        "url": f"/uploads/{meeting_id}/preparation/{quote(stored_name)}",
+        "size": written,
+        "uploaded_at": now_iso(),
+    }
+
+
+def _remove_preparation_file(prep: dict, file_id: str) -> dict | None:
+    common_files = prep.get("common_files", [])
+    for index, item in enumerate(list(common_files)):
+        if item.get("id") == file_id:
+            return common_files.pop(index)
+
+    participants = prep.get("participants", {})
+    if isinstance(participants, dict):
+        for entry in participants.values():
+            if not isinstance(entry, dict):
+                continue
+            files = entry.get("files", [])
+            if not isinstance(files, list):
+                continue
+            for index, item in enumerate(list(files)):
+                if isinstance(item, dict) and item.get("id") == file_id:
+                    return files.pop(index)
+    return None
 
 
 @router.post("/{meeting_id}/export", summary="导出 Word 纪要", description="将已生成的会议摘要和结构化纪要导出为 .docx 文件。")

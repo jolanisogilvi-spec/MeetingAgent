@@ -13,6 +13,7 @@ CORS_ORIGINS = ["http://localhost:5173", "http://localhost:8050"]
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 MEETING_UPLOAD_EXTS = {".mp3", ".wav", ".txt", ".docx"}
 KB_UPLOAD_EXTS = {".txt", ".docx"}
+PREPARATION_UPLOAD_EXTS = {".txt", ".doc", ".docx", ".pdf", ".ppt", ".pptx", ".xls", ".xlsx"}
 
 
 def ensure_dirs() -> None:
