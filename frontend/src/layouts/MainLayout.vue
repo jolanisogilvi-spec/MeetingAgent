@@ -2,8 +2,12 @@
   <div class="app-layout" :class="{ collapsed: sidebarCollapsed }">
     <aside class="sidebar">
       <div class="brand">
-        <span class="brand-logo">会</span>
-        <span class="brand-text">会议智能体</span>
+        <img
+          class="brand-logo"
+          src="https://www.thingo.com.cn/logo.svg"
+          alt="Thingo"
+        />
+        <span class="brand-text">Thingo会议智能体</span>
       </div>
       <nav class="nav">
         <router-link
@@ -95,7 +99,7 @@ function isActive(item) {
 }
 
 .sidebar {
-  width: 198px;
+  width: 238px;
   flex-shrink: 0;
   background: linear-gradient(180deg, #072337 0%, #061222 100%);
   color: #e5e7eb;
@@ -110,9 +114,9 @@ function isActive(item) {
   height: 66px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 26px;
-  font-size: 20px;
+  gap: 11px;
+  padding: 0 18px;
+  font-size: 17px;
   font-weight: 800;
   color: #fff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -124,21 +128,16 @@ function isActive(item) {
 }
 
 .brand-logo {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1686d9, #12a894);
-  border-radius: 7px;
-  font-size: 15px;
-  font-weight: 900;
-  box-shadow: 0 10px 20px rgba(0, 160, 210, 0.22);
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: block;
+  object-fit: contain;
 }
 
 .brand-text {
   letter-spacing: 0;
+  line-height: 1.2;
   white-space: nowrap;
 }
 

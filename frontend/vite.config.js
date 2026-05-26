@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
+const backendTarget = process.env.VITE_BACKEND_TARGET || 'http://localhost:8000'
+
 export default defineConfig({
   plugins: [vue()],
   resolve: {
@@ -14,23 +16,23 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: backendTarget,
         changeOrigin: true
       },
       '/docs': {
-        target: 'http://localhost:8000',
+        target: backendTarget,
         changeOrigin: true
       },
       '/openapi.json': {
-        target: 'http://localhost:8000',
+        target: backendTarget,
         changeOrigin: true
       },
       '/redoc': {
-        target: 'http://localhost:8000',
+        target: backendTarget,
         changeOrigin: true
       },
       '/uploads': {
-        target: 'http://localhost:8000',
+        target: backendTarget,
         changeOrigin: true
       }
     }

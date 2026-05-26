@@ -56,7 +56,42 @@ npm run build      # 输出到 frontend/dist
 npm run preview    # 本地预览构建产物
 ```
 
-## 4. 首次使用流程
+## 4. Docker 启动
+
+项目已提供 Docker Compose 配置。默认启动：
+
+```bash
+docker compose up -d --build
+```
+
+浏览器访问：
+
+```text
+http://localhost:8050
+```
+
+如果需要局域网访问，使用宿主机局域网 IP：
+
+```text
+http://<宿主机局域网IP>:8050
+```
+
+如果 `8000` 或 `8050` 被占用，复制 `.env.example` 为 `.env` 并修改：
+
+```env
+BACKEND_PORT=18000
+FRONTEND_PORT=18050
+```
+
+然后重新执行：
+
+```bash
+docker compose up -d --build
+```
+
+更完整的 Docker 说明见 [DOCKER.md](DOCKER.md)。
+
+## 5. 首次使用流程
 
 按以下顺序操作可以最快验证整套链路：
 
@@ -77,7 +112,7 @@ npm run preview    # 本地预览构建产物
    - 汇总所有会议沉淀出的待办任务。
    - 支持按部门 / 责任人 / 会议 / 状态筛选；可在表格中内联编辑责任人、标题、截止时间、状态；删除前会要求确认。
 
-## 5. 数据存储说明
+## 6. 数据存储说明
 
 | 路径 | 内容 |
 |---|---|
@@ -87,7 +122,7 @@ npm run preview    # 本地预览构建产物
 
 备份只需复制整个 `backend/data/` 目录。重置只需删除该目录后重启后端。
 
-## 6. 模型配置说明
+## 7. 模型配置说明
 
 - **大模型**：使用 OpenAI SDK 兼容协议（`openai.OpenAI(api_key=..., base_url=...)`），支持 DeepSeek、Qwen、Moonshot、智谱、OpenAI 等。`Base URL` 通常以 `/v1` 结尾。
 - **Embedding**：同样使用 OpenAI 兼容协议。若你填的 Base URL 已经包含 `/embeddings`，后端会自动剥离避免拼出 `/embeddings/embeddings`。**不允许默认复用大模型 API Key / Base URL**，必须显式填写。
@@ -97,7 +132,7 @@ npm run preview    # 本地预览构建产物
 
 API Key 在保存后返回时会被屏蔽（仅保留前 4 位 + `****`），保存表单留空字段时不会覆盖已存在的 key。
 
-## 7. 已知限制（第一版）
+## 8. 已知限制（第一版）
 
 - 生成会议纪要已改为后台任务 + 前端轮询；当前还没有独立任务队列，服务进程重启会中断正在生成的任务。
 - 向量索引为内存版（每次生成现切现算），不持久化；多次生成同一份知识库会重复计算。
@@ -105,7 +140,7 @@ API Key 在保存后返回时会被屏蔽（仅保留前 4 位 + `****`），保
 - Word 导出样式较朴素，未做企业模板定制。
 - 未提供登录与多租户隔离。
 
-## 8. 故障排查
+## 9. 故障排查
 
 - **后端启动报缺包**：确认 `pip install -r requirements.txt` 已在当前 venv 内执行成功。
 - **前端 `npm install` 卡住**：检查网络代理；可使用 `npm config set registry https://registry.npmmirror.com/` 切换镜像。
